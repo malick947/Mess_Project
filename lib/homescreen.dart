@@ -21,7 +21,7 @@ class _HomescreenState extends State<Homescreen> {
     // Text("Notifications",style: tstyle,),
     // Text("Queue",style: tstyle,),
     // Text("Account",style: tstyle,),
-    FetchDataExample(),
+    MenuPage(),
     NotificationScreen(),
     QueueScreen(),
     AccountScreen()
