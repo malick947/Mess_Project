@@ -49,7 +49,10 @@ class _AccountScreenState extends State<AccountScreen> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    getdata();
+    setState(() {
+      getdata();
+    });
+    
 
   }
   @override
@@ -92,10 +95,12 @@ class _AccountScreenState extends State<AccountScreen> {
                         width: width/3,
                       ),
                       Container(child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
+                        spacing: 10,
+                        //mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(Username,style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold,fontSize: 20),),
-                          Text(Role,style: TextStyle(color: Colors.white,fontSize: 15))
+                          Text(Role,style: TextStyle(color: Colors.white,fontSize: 15)),
                         ],
                       ),)
                     ],),

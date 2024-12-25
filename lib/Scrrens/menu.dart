@@ -1,10 +1,14 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:untitled123/Models/menu_model';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:untitled123/Auth_Services/Account_service.dart';
+import 'package:untitled123/Auth_Services/UserModel.dart';
+import 'package:untitled123/Models/localDBModel.dart';
 
+import '../Models/menu_model';
 
 class MenuPage extends StatefulWidget {
   @override
@@ -16,6 +20,83 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   TabController? tabController;
   List<MenuDay> menuData = [];
   String searchQuery = "";
+  List<Map<String, dynamic>> cart = []; // Dynamic array of maps for cart items
+
+  bool isLoading = true;
+
+  var totalCartPrice = 0; // Total price of all items in the cart
+  late String userID;
+  late String userName;
+  late String userEmail;
+  late int userBalance;
+  late String userRole;
+
+  // ignore: prefer_final_fields
+  FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  late Users currentUserInfo;
+
+  void getUserData() async {
+    currentUserInfo = await GetMe(_firebaseAuth.currentUser!.uid.toString());
+
+    userID = currentUserInfo.uid;
+    userName = currentUserInfo.first_name + " " + currentUserInfo.last_name;
+    userEmail = currentUserInfo.email;
+    userBalance = currentUserInfo.balance;
+    userRole = currentUserInfo.role;
+  }
+
+  int getCartItemCount() {
+    return cart.fold(0, (int sum, item) {
+      final quantity =
+          item['quantity'] as num; // Ensure it's treated as a number
+      return sum + quantity.toInt()+1; // Convert to int and add
+    });
+  }
+
+  ////////////////////// Balance Deduction ///////////////////////////////////////////////
+
+  Future<void> deductBalance(String uid, int priceToDeduct) async {
+    try {
+      // Query Firestore to find the document with the given UID
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('customers')
+          .where('uid', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      // Check if any document is returned
+      if (querySnapshot.docs.isNotEmpty) {
+        // Get the first matching document reference
+        DocumentReference docRef = querySnapshot.docs.first.reference;
+
+        // Fetch the current balance
+        DocumentSnapshot doc = await docRef.get();
+        if (doc.exists) {
+          int currentBalance = doc['balance'];
+
+          // Check if sufficient balance is available
+          if (currentBalance >= priceToDeduct) {
+            int updatedBalance = currentBalance - priceToDeduct;
+
+            // Update the balance in Firestore
+            await docRef.update({'balance': updatedBalance});
+
+            print("Balance updated successfully. New balance: $updatedBalance");
+          } else {
+            print("Insufficient balance!");
+          }
+        } else {
+          print("Document does not exist!");
+        }
+      } else {
+        print("No matching document found for UID: $uid");
+      }
+    } catch (e) {
+      print("Error updating balance: $e");
+    }
+  }
+
+  ////////////////////// Balance Deduction ///////////////////////////////////////////////
 
   // Days of the week in order
   final List<String> weekDays = [
@@ -31,6 +112,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    getUserData();
+    showLoadingIndicator();
+
     tabController = TabController(
         length: weekDays.length, vsync: this); // Fixed tabs for 7 days
     fetchData();
@@ -38,13 +122,15 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   void increment() {
     setState(() {
-      quantitySelector = quantitySelector + 0.5;
+      quantitySelector += 0.5;
     });
   }
 
   void decrement() {
     setState(() {
-      quantitySelector = quantitySelector - 0.5;
+      if (quantitySelector > 0.5) {
+        quantitySelector -= 0.5;
+      }
     });
   }
 
@@ -57,10 +143,170 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     });
   }
 
+  void addToCart(String name, double price) {
+    setState(() {
+      final existingItemIndex = cart.indexWhere((item) => item['name'] == name);
+      if (existingItemIndex >= 0) {
+        // Update quantity and price for existing item
+        cart[existingItemIndex]['quantity'] += 0.5;
+        cart[existingItemIndex]['totalPrice'] =
+            cart[existingItemIndex]['quantity'] * price;
+      } else {
+        // Add new item to cart
+        cart.add({
+          'name': name,
+          'quantity': 0.5,
+          'unitPrice': price,
+          'totalPrice': 0.5 * price,
+        });
+      }
+      updateTotalCartPrice();
+    });
+  }
+
+  void removeFromCart(String name, double price) {
+    setState(() {
+      final existingItemIndex = cart.indexWhere((item) => item['name'] == name);
+      if (existingItemIndex >= 0) {
+        cart[existingItemIndex]['quantity'] -= 0.5;
+        if (cart[existingItemIndex]['quantity'] <= 0) {
+          cart.removeAt(existingItemIndex);
+        } else {
+          cart[existingItemIndex]['totalPrice'] =
+              cart[existingItemIndex]['quantity'] * price;
+        }
+      }
+      updateTotalCartPrice();
+    });
+  }
+
+  void showLoadingIndicator() async {
+    await Future.delayed(Duration(seconds: 2)); // Wait for 3 seconds
+    setState(() {
+      isLoading = false; // Switch to showing text
+    });
+  }
+
+  void updateTotalCartPrice() {
+    totalCartPrice = cart.fold(0, (int sum, item) {
+      final totalPrice =
+          item['totalPrice'] as num; // Ensure it's treated as num
+      return sum + totalPrice.toInt(); // Safely convert to int and add
+    });
+  }
+
+  void placeOrder() async {
+    getUsers();
+    final order = {
+      'items': cart,
+      'email': userEmail,
+      'role': userRole,
+      'uid': userID,
+      'timestamp': FieldValue.serverTimestamp(),
+      'totalPrice': totalCartPrice,
+    };
+
+    await FirebaseFirestore.instance.collection('orders').add(order);
+
+    //await DatabaseHelper.instance.insertOrder(order);
+    setState(() {
+      cart.clear(); // Clear the cart after placing the order
+      totalCartPrice = 0;
+    });
+
+    Get.snackbar(
+        "Order Placed Successfully", "Wait So that We will place the Order",
+        snackPosition: SnackPosition.TOP);
+    Navigator.of(context).pop();
+  }
+
+  void printLocalOrders() async {
+    final orders = await DatabaseHelper.instance.getOrders();
+    for (var order in orders) {
+      print(order);
+    }
+  }
+
   @override
   void dispose() {
     tabController?.dispose();
     super.dispose();
+  }
+
+  void showCartBottomSheet() {
+    showModalBottomSheet(
+      backgroundColor: Colors.transparent,
+      clipBehavior: Clip.hardEdge,
+      context: context,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Container(
+            margin: EdgeInsets.only(bottom: 100),
+            decoration: BoxDecoration(
+                border: Border.all(color: Colors.green, width: 2),
+                color: Colors.blueGrey.shade100,
+                borderRadius: BorderRadius.circular(40)),
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Cart',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: cart.length,
+                    itemBuilder: (context, index) {
+                      final item = cart[index];
+                      return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ListTile(
+                          tileColor: Colors.white,
+                          trailing: Text(
+                              "Total: ${item['totalPrice'].toStringAsFixed(2)} rs."),
+                          title: Text(item['name']),
+                          subtitle: Text('Quantity: ${item['quantity']}'),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Text(
+                  'Total Price: ${totalCartPrice} rs.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all(Colors.orange),
+                  ),
+                  onPressed: () async {
+                    if (totalCartPrice <= userBalance) {
+                      await getUsers();
+                      placeOrder();
+                      deductBalance(userID, totalCartPrice);
+                      printLocalOrders();
+                    } else {
+                      Get.snackbar("UnSufficient Balance!",
+                          "Please recharge your account to order meals.",backgroundColor: Colors.red.shade400,colorText: Colors.white);
+                    }
+                  },
+                  child: Text(
+                    'Confirm Order',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -73,6 +319,42 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
         ),
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: HugeIcon(
+                  icon: HugeIcons.strokeRoundedShoppingCart02,
+                  color: Colors.black,
+                ),
+                onPressed: () {
+                  showCartBottomSheet();
+                },
+              ),
+              if (getCartItemCount() >
+                  0) // Show badge only if there are items in the cart
+                Positioned(
+                  right: 5,
+                  top: 5,
+                  child: Container(
+                    padding: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      getCartItemCount().toString(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -125,9 +407,17 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 }).toList();
 
                 if (filteredItems.isEmpty) {
-                  return Center(
-                      child: Text(
-                          "No menu available for $day.")); // No menu message
+                  return isLoading
+                      ? Center(
+                          child:
+                              CircularProgressIndicator(), // Show progress indicator
+                        )
+                      : Center(
+                          child: Text(
+                            "No menu available for this day.",
+                            style: TextStyle(fontSize: 18),
+                          ),
+                        ); // No menu message
                 }
 
                 // Render grid of items
@@ -146,7 +436,6 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                         padding: EdgeInsets.only(
                             top: 20, left: 20, right: 20, bottom: 5),
                         child: Column(
-                          //spacing: 10,
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Container(
@@ -156,11 +445,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(
-                                        0.3), // Shadow color with opacity
-                                    blurRadius: 10, // Blur radius
-                                    spreadRadius:
-                                        1, // Spread radius (how much the shadow spreads)
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
                                   ),
                                 ],
                               ),
@@ -168,7 +455,6 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                 radius: 50,
                                 backgroundImage:
                                     AssetImage("assets/imagetest.png"),
-                                //fit: BoxFit.cover,
                               ),
                             ),
                             Text(
@@ -195,9 +481,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                 children: [
                                   GestureDetector(
                                     onTap: () {
-                                      if (quantitySelector >= 0.5) {
-                                        decrement();
-                                      }
+                                      removeFromCart(
+                                          item.name, double.parse(item.price));
                                     },
                                     child: Container(
                                       padding: EdgeInsets.all(1),
@@ -215,14 +500,21 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                     child: Container(
                                       child: Center(
                                           child: Text(
-                                        quantitySelector.toString(),
+                                        cart
+                                            .firstWhere(
+                                              (cartItem) =>
+                                                  cartItem['name'] == item.name,
+                                              orElse: () => {'quantity': 0.0},
+                                            )['quantity']
+                                            .toString(),
                                         style: TextStyle(color: Colors.white),
                                       )),
                                     ),
                                   ),
                                   GestureDetector(
                                     onTap: () {
-                                      increment();
+                                      addToCart(
+                                          item.name, double.parse(item.price));
                                     },
                                     child: Container(
                                       padding: EdgeInsets.all(1),
@@ -248,6 +540,78 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: cart.isEmpty? SizedBox() : buildCartBar()
+    );
+  }
+
+  Widget buildCartBar() {
+    return GestureDetector(
+      onTap: () {
+        showCartBottomSheet(); // Open the bottom cart sheet
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+        margin: EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: Colors.green, width: 2),
+          borderRadius: BorderRadius.circular(40),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              onPressed: () {
+                showCartBottomSheet(); // Open bottom sheet on button click
+              },
+              child: Text(
+                "View Cart",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            SizedBox(width: 10),
+            // Show circular images for items in the cart
+            Expanded(
+              child: SizedBox(
+                height: 40,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: cart.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      padding: EdgeInsets.all(4),
+                      margin: EdgeInsets.only(left: 5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.green.withOpacity(0.6),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                        //border: Border.all(color: Colors.green, width: 2),
+                      ),
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundImage: AssetImage(
+                            'assets/imagetest.png'), // Replace with actual item image
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
