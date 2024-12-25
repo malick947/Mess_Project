@@ -285,12 +285,18 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                   style: ButtonStyle(
                     backgroundColor: MaterialStateProperty.all(Colors.orange),
                   ),
-                  onPressed: () async {
+                  onPressed: () {
+                    //getUserData();
+                    
                     if (totalCartPrice <= userBalance) {
-                      await getUsers();
+                      
                       placeOrder();
                       deductBalance(userID, totalCartPrice);
                       printLocalOrders();
+
+                      setState(() {
+                        getUserData();
+                      });
                     } else {
                       Get.snackbar("UnSufficient Balance!",
                           "Please recharge your account to order meals.",backgroundColor: Colors.red.shade400,colorText: Colors.white);
