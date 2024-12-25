@@ -1,59 +1,61 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:untitled123/Auth_Services/SignUp.dart';
-import 'package:untitled123/homescreen.dart';
-import '../UI_helper/Custom_widgets.dart';
 import 'package:get/get.dart';
+import 'package:untitled123/Auth_Services/NewSignUp.dart';
 
-class Login extends StatefulWidget {
-  const Login({super.key});
+import '../UI_helper/Custom_widgets.dart';
+import '../homescreen.dart';
+import 'SignUp.dart';
+class newLogin extends StatefulWidget {
+  const newLogin({super.key});
 
   @override
-  State<Login> createState() => _LoginState();
+  State<newLogin> createState() => _newLoginState();
 }
 
-class _LoginState extends State<Login> {
+class _newLoginState extends State<newLogin> {
+  final _formkey = GlobalKey<FormState>();
   bool loading=false;
   String? DropDownValue;
   FirebaseAuth _auth=FirebaseAuth.instance;
   var email = TextEditingController();
   var password = TextEditingController();
-
+  
   @override
   Widget build(BuildContext context) {
-    final _formkey = GlobalKey<FormState>();
-    double height = MediaQuery.of(context).size.height;
-    double width = MediaQuery.of(context).size.width;
-
-
+    double height=MediaQuery.of(context).size.height;
+    double width=MediaQuery.of(context).size.width;
     return Scaffold(
-      body: Container(
-        height: height,
-        width: width,
-        color: Colors.green,
-        child: Column(
-          children: [
-            SizedBox(height: height / 4),
+      backgroundColor: Colors.green.shade700,
+      body: SingleChildScrollView(
+        child: Container(
+          child: Column(children: [
+            SizedBox(height: height/4,),
             Container(
-              height: height - height / 4,
-              width: width,
+              height: height-height/4,
               decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 7,
+                    spreadRadius: 2,
+                    color: Colors.green.shade500
+                  )
+                ],
                 color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(35),
-                  topRight: Radius.circular(35),
-                ),
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(25),topRight: Radius.circular(25))
               ),
-              child: Container(
-                margin: EdgeInsets.symmetric(horizontal: 30, vertical: 40),
-                child: Column(
-                  spacing: 20,
-                  children: [
-                    Text(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12.0),
+                    child: Text(
                       "Welcome Back!!!",
                       style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
                     ),
-                    Form(
+                  ),
+                  Container(margin: EdgeInsets.only(left: 20,top: 40,right: 20),
+
+                    child: Form(
                       key: _formkey,
                       child: Column(
                         spacing: 30,
@@ -124,33 +126,36 @@ class _LoginState extends State<Login> {
                         ],
                       ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        InkWell(
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      InkWell(
+                        child: Container(
+                          margin: EdgeInsets.symmetric(vertical: 20,horizontal: 20),
                           child: Text(
                             "Forgot Password?",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          onTap: () {
-                            // Action for Forgot Password
-                          },
                         ),
-                      ],
-                    ),
-                    RoundButton(
-                      text: 'Create Account',
-                      onTap: () {
-                        // Action for creating Account
-                        Get.to(Signup());
-                      },
-                    ),
-
-                  ],
-                ),
+                        onTap: () {
+                          // Action for Forgot Password
+                        },
+                      ),
+                    ],
+                  ),
+                  RoundButton(
+                    text: 'Create Account',
+                    onTap: () {
+                      // Action for creating Account
+                      Get.to(newSignUp());
+                    },
+                  ),
+                ],
               ),
-            ),
-          ],
+            )
+        
+          ],),
         ),
       ),
     );

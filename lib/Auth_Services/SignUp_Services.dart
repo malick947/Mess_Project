@@ -2,8 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:untitled123/Auth_Services/Login.dart';
+
 import 'package:untitled123/Auth_Services/UserModel.dart';
+import 'package:untitled123/Auth_Services/newLogin.dart';
 import 'package:untitled123/homescreen.dart';
 import 'package:get/get.dart';
 
@@ -72,5 +73,5 @@ void logout(){
 
     backgroundColor: Colors.green.shade700,
   );
-  Get.off(Login());
+  Get.off(newLogin());
 }
