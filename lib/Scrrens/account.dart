@@ -2,12 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:untitled123/Auth_Services/Account_service.dart';
 import 'package:untitled123/Auth_Services/ChangePassword.dart';
-import 'package:untitled123/Auth_Services/Login.dart';
+
 import 'package:get/get.dart';
 import 'package:untitled123/Auth_Services/SignUp.dart';
 import 'package:untitled123/Auth_Services/SignUp_Services.dart';
 
 import '../Auth_Services/UserModel.dart';
+
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -33,10 +34,7 @@ class _AccountScreenState extends State<AccountScreen> {
     Role=Iam.role;
     mail=Iam.email;
 
-    debugPrint(balance.toString());
-    debugPrint(Username);
-    debugPrint(Role);
-    debugPrint(mail);
+
     setState(() {
       is_loading_complete=true;
     });

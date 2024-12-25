@@ -26,7 +26,7 @@ Future<Users> GetMe(String uid) async{
     if (user['uid'] == uid) {
 
 
-      Me=Users(uid: user['uid'], first_name: user['firstName'], last_name: user['lastName'], email: user['email'], password: user['password'], role: user['role']);
+      Me=Users(uid: user['uid'], first_name: user['firstName'], last_name: user['lastName'], email: user['email'], password: user['password'], role: user['role'],balance: user['balance']);
       debugPrint(Me.first_name);
       break;
     }
