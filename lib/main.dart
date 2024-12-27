@@ -17,7 +17,7 @@ class myApp extends StatelessWidget {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Flutter Firebase App',
-      home: Homescreen(),
+      home: SplashScreen(),
       theme: ThemeData.light().copyWith(
         textTheme: GoogleFonts.poppinsTextTheme(
           Theme.of(context).textTheme
