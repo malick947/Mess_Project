@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_unnecessary_containers
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -7,6 +9,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:untitled123/Auth_Services/Account_service.dart';
 import 'package:untitled123/Auth_Services/UserModel.dart';
 import 'package:untitled123/Models/localDBModel.dart';
+import 'package:untitled123/Scrrens/account.dart';
+import 'package:untitled123/Scrrens/orderQueue.dart';
+import 'package:untitled123/homescreen.dart';
 
 import '../Models/menu_model';
 
@@ -24,6 +29,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   bool isLoading = true;
 
+  int orderID =0;
   var totalCartPrice = 0; // Total price of all items in the cart
   late String userID;
   late String userName;
@@ -32,10 +38,17 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   late String userRole;
 
   // ignore: prefer_final_fields
-  FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+
   late Users currentUserInfo;
 
+  void _refresh() {
+    setState(() {
+      getUserData();
+    });
+  }
+
   void getUserData() async {
+    FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
     currentUserInfo = await GetMe(_firebaseAuth.currentUser!.uid.toString());
 
     userID = currentUserInfo.uid;
@@ -45,11 +58,57 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     userRole = currentUserInfo.role;
   }
 
+  // ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+  Future<int> getNextOrderId(String rolebase) async {
+    String collectionName = '';
+    if (rolebase == "Male Student") {
+      collectionName = "male_orders";
+    } else if (rolebase == "Female Student") {
+      collectionName = "female_orders";
+    } else if (userRole == "Faculty or Staff") {
+      collectionName = "faculity_staff_orders";
+    }
+    try {
+      // Reference to the "orders" collection
+      final ordersCollection = FirebaseFirestore.instance.collection(collectionName);
+
+      // Fetch all orders from the collection
+      final snapshot = await ordersCollection.get();
+
+      if (snapshot.docs.isEmpty) {
+        // If there are no orders, start with order ID 1
+        orderID = 1;
+        return 1;
+      }
+
+      // Find the maximum order ID from the documents
+      int maxOrderId = 0;
+      for (var doc in snapshot.docs) {
+        // Ensure the "orderID" field exists and is an integer
+        final orderId = doc.data()['orderID'];
+        if (orderId is int && orderId > maxOrderId) {
+          maxOrderId = orderId;
+        }
+      }
+
+      // Return the next order ID
+      orderID = maxOrderId+1;
+      return maxOrderId + 1;
+    } catch (e) {
+      print("Error fetching orders: $e");
+      // Handle errors appropriately
+      throw Exception("Failed to fetch next order ID.");
+    }
+  }
+
+  // ...........................................................................
+
   int getCartItemCount() {
     return cart.fold(0, (int sum, item) {
       final quantity =
           item['quantity'] as num; // Ensure it's treated as a number
-      return sum + quantity.toInt()+1; // Convert to int and add
+      return sum + quantity.toInt() + 1; // Convert to int and add
     });
   }
 
@@ -122,14 +181,14 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   void increment() {
     setState(() {
-      quantitySelector += 0.5;
+      //counterRoti += 1;
     });
   }
 
   void decrement() {
     setState(() {
-      if (quantitySelector > 0.5) {
-        quantitySelector -= 0.5;
+      if (quantitySelector > 0) {
+        quantitySelector -= 1;
       }
     });
   }
@@ -182,9 +241,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   void showLoadingIndicator() async {
     await Future.delayed(Duration(seconds: 2)); // Wait for 3 seconds
-    setState(() {
-      isLoading = false; // Switch to showing text
-    });
+
+    isLoading = false; // Switch to showing text
   }
 
   void updateTotalCartPrice() {
@@ -196,8 +254,13 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   }
 
   void placeOrder() async {
+    orderID = await getNextOrderId(userRole);
+    print("Next Order ID: $orderID");
+    //getNextOrderId(userRole);
     getUsers();
+    print(orderID);
     final order = {
+      'orderID': orderID,
       'items': cart,
       'email': userEmail,
       'role': userRole,
@@ -206,7 +269,16 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       'totalPrice': totalCartPrice,
     };
 
-    await FirebaseFirestore.instance.collection('orders').add(order);
+    if (userRole == "Male Student") {
+      await FirebaseFirestore.instance.collection('male_orders').add(order);
+    } else if (userRole == "Female Student") {
+      await FirebaseFirestore.instance.collection('female_orders').add(order);
+    } else if (userRole == "Faculty or Staff") {
+      await FirebaseFirestore.instance
+          .collection('faculity_staff_orders')
+          .add(order);
+    }
+    //await FirebaseFirestore.instance.collection('orders').add(order);
 
     //await DatabaseHelper.instance.insertOrder(order);
     setState(() {
@@ -233,6 +305,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  String rotiName = "Roti";
+  int rotiprice = 15;
+
   void showCartBottomSheet() {
     showModalBottomSheet(
       backgroundColor: Colors.transparent,
@@ -242,7 +317,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Container(
-            margin: EdgeInsets.only(bottom: 100),
+            margin: EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
                 border: Border.all(color: Colors.green, width: 2),
                 color: Colors.blueGrey.shade100,
@@ -285,21 +360,23 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                   style: ButtonStyle(
                     backgroundColor: MaterialStateProperty.all(Colors.orange),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     //getUserData();
-                    
+                    // setState(() {
+                    //   getUserData();
+                    // });
                     if (totalCartPrice <= userBalance) {
-                      
                       placeOrder();
                       deductBalance(userID, totalCartPrice);
                       printLocalOrders();
 
-                      setState(() {
-                        getUserData();
-                      });
+                      setState(() {});
+                      _refresh();
                     } else {
                       Get.snackbar("UnSufficient Balance!",
-                          "Please recharge your account to order meals.",backgroundColor: Colors.red.shade400,colorText: Colors.white);
+                          "Please recharge your account to order meals.",
+                          backgroundColor: Colors.red.shade400,
+                          colorText: Colors.white);
                     }
                   },
                   child: Text(
@@ -318,237 +395,240 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Center(
-          child: Text(
-            "Menu",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        appBar: AppBar(
+          title: Center(
+            child: Text(
+              "Menu",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
           ),
-        ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: HugeIcon(
-                  icon: HugeIcons.strokeRoundedShoppingCart02,
-                  color: Colors.black,
+          actions: [
+            Stack(
+              children: [
+                IconButton(
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedShoppingCart02,
+                    color: Colors.black,
+                  ),
+                  onPressed: () {
+                    getUserData();
+                    showCartBottomSheet();
+                  },
                 ),
-                onPressed: () {
-                  showCartBottomSheet();
-                },
-              ),
-              if (getCartItemCount() >
-                  0) // Show badge only if there are items in the cart
-                Positioned(
-                  right: 5,
-                  top: 5,
-                  child: Container(
-                    padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      getCartItemCount().toString(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                if (getCartItemCount() >
+                    0) // Show badge only if there are items in the cart
+                  Positioned(
+                    right: 5,
+                    top: 5,
+                    child: Container(
+                      padding: EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        getCartItemCount().toString(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
+              ],
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: TextField(
+                onChanged: (value) {
+                  setState(() {
+                    searchQuery = value.toLowerCase();
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: "Search your meals...",
+                  prefixIcon: HugeIcon(
+                      icon: HugeIcons.strokeRoundedSearch01,
+                      color: Colors.black),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(color: Colors.black, width: 2)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(color: Colors.orange, width: 2)),
                 ),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value.toLowerCase();
-                });
-              },
-              decoration: InputDecoration(
-                hintText: "Search your meals...",
-                prefixIcon: HugeIcon(
-                    icon: HugeIcons.strokeRoundedSearch01, color: Colors.black),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide(color: Colors.black, width: 2)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide(color: Colors.orange, width: 2)),
               ),
             ),
-          ),
-          TabBar(
-            isScrollable: true,
-            indicatorColor: Colors.orange,
-            labelColor: Colors.orange,
-            controller: tabController,
-            tabs: weekDays
-                .map((day) => Tab(text: day))
-                .toList(), // Fixed tabs for all days
-          ),
-          Expanded(
-            child: TabBarView(
+            TabBar(
+              isScrollable: true,
+              indicatorColor: Colors.orange,
+              labelColor: Colors.orange,
               controller: tabController,
-              children: weekDays.map((day) {
-                // Find menu data for the current day
-                final menuDay = menuData.firstWhere(
-                  (menu) => menu.day == day,
-                  orElse: () => MenuDay(day: day, items: []),
-                ); // Default empty menu
-
-                // Filter items based on search query
-                final filteredItems = menuDay.items.where((item) {
-                  return item.name.toLowerCase().contains(searchQuery) ||
-                      item.description.toLowerCase().contains(searchQuery);
-                }).toList();
-
-                if (filteredItems.isEmpty) {
-                  return isLoading
-                      ? Center(
-                          child:
-                              CircularProgressIndicator(), // Show progress indicator
-                        )
-                      : Center(
-                          child: Text(
-                            "No menu available for this day.",
-                            style: TextStyle(fontSize: 18),
-                          ),
-                        ); // No menu message
-                }
-
-                // Render grid of items
-                return GridView.count(
-                  childAspectRatio: 0.65,
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 8.0,
-                  mainAxisSpacing: 8.0,
-                  padding: EdgeInsets.all(8),
-                  children: List.generate(filteredItems.length, (index) {
-                    final item = filteredItems[index];
-                    return Card(
-                      color: Colors.blueGrey.shade100,
-                      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                      child: Container(
-                        padding: EdgeInsets.only(
-                            top: 20, left: 20, right: 20, bottom: 5),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 10,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: const CircleAvatar(
-                                radius: 50,
-                                backgroundImage:
-                                    AssetImage("assets/imagetest.png"),
-                              ),
-                            ),
-                            Text(
-                              item.name,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                            Text(
-                              "Price: ${item.price}",
-                              style:
-                                  TextStyle(fontSize: 14, color: Colors.black),
-                            ),
-                            Container(
-                              margin: EdgeInsets.only(left: 10, right: 10),
-                              padding: EdgeInsets.all(5),
-                              height: 34,
-                              decoration: BoxDecoration(
-                                  color: Colors.green,
-                                  borderRadius: BorderRadius.circular(15)),
-                              child: Row(
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      removeFromCart(
-                                          item.name, double.parse(item.price));
-                                    },
-                                    child: Container(
-                                      padding: EdgeInsets.all(1),
-                                      decoration: BoxDecoration(
-                                          color: Colors.orange,
-                                          borderRadius:
-                                              BorderRadius.circular(15)),
-                                      child: HugeIcon(
-                                          icon:
-                                              HugeIcons.strokeRoundedMinusSign,
-                                          color: Colors.white),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Container(
-                                      child: Center(
-                                          child: Text(
-                                        cart
-                                            .firstWhere(
-                                              (cartItem) =>
-                                                  cartItem['name'] == item.name,
-                                              orElse: () => {'quantity': 0.0},
-                                            )['quantity']
-                                            .toString(),
-                                        style: TextStyle(color: Colors.white),
-                                      )),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () {
-                                      addToCart(
-                                          item.name, double.parse(item.price));
-                                    },
-                                    child: Container(
-                                      padding: EdgeInsets.all(1),
-                                      decoration: BoxDecoration(
-                                          color: Colors.orange,
-                                          borderRadius:
-                                              BorderRadius.circular(15)),
-                                      child: HugeIcon(
-                                          icon: HugeIcons.strokeRoundedAdd01,
-                                          color: Colors.white),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                );
-              }).toList(),
+              tabs: weekDays
+                  .map((day) => Tab(text: day))
+                  .toList(), // Fixed tabs for all days
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: cart.isEmpty? SizedBox() : buildCartBar()
-    );
+            Expanded(
+              child: TabBarView(
+                controller: tabController,
+                children: weekDays.map((day) {
+                  // Find menu data for the current day
+                  final menuDay = menuData.firstWhere(
+                    (menu) => menu.day == day,
+                    orElse: () => MenuDay(day: day, items: []),
+                  ); // Default empty menu
+
+                  // Filter items based on search query
+                  final filteredItems = menuDay.items.where((item) {
+                    return item.name.toLowerCase().contains(searchQuery) ||
+                        item.description.toLowerCase().contains(searchQuery);
+                  }).toList();
+
+                  if (filteredItems.isEmpty) {
+                    return isLoading
+                        ? Center(
+                            child:
+                                CircularProgressIndicator(), // Show progress indicator
+                          )
+                        : Center(
+                            child: Text(
+                              "No menu available for this day.",
+                              style: TextStyle(fontSize: 18),
+                            ),
+                          ); // No menu message
+                  }
+
+                  // Render grid of items
+                  return GridView.count(
+                    childAspectRatio: 0.65,
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 8.0,
+                    mainAxisSpacing: 8.0,
+                    padding: EdgeInsets.all(8),
+                    children: List.generate(filteredItems.length, (index) {
+                      final item = filteredItems[index];
+                      return Card(
+                        color: Colors.blueGrey.shade100,
+                        margin:
+                            EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        child: Container(
+                          padding: EdgeInsets.only(
+                              top: 20, left: 20, right: 20, bottom: 5),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 10,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                                child: const CircleAvatar(
+                                  radius: 50,
+                                  backgroundImage:
+                                      AssetImage("assets/imagetest.png"),
+                                ),
+                              ),
+                              Text(
+                                item.name,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              Text(
+                                "Price: ${item.price}",
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.black),
+                              ),
+                              Container(
+                                margin: EdgeInsets.only(left: 10, right: 10),
+                                padding: EdgeInsets.all(5),
+                                height: 34,
+                                decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(15)),
+                                child: Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        removeFromCart(item.name,
+                                            double.parse(item.price));
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.all(1),
+                                        decoration: BoxDecoration(
+                                            color: Colors.orange,
+                                            borderRadius:
+                                                BorderRadius.circular(15)),
+                                        child: HugeIcon(
+                                            icon: HugeIcons
+                                                .strokeRoundedMinusSign,
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Container(
+                                        child: Center(
+                                            child: Text(
+                                          cart
+                                              .firstWhere(
+                                                (cartItem) =>
+                                                    cartItem['name'] ==
+                                                    item.name,
+                                                orElse: () => {'quantity': 0.0},
+                                              )['quantity']
+                                              .toString(),
+                                          style: TextStyle(color: Colors.white),
+                                        )),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        addToCart(item.name,
+                                            double.parse(item.price));
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.all(1),
+                                        decoration: BoxDecoration(
+                                            color: Colors.orange,
+                                            borderRadius:
+                                                BorderRadius.circular(15)),
+                                        child: HugeIcon(
+                                            icon: HugeIcons.strokeRoundedAdd01,
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: cart.isEmpty ? SizedBox() : buildCartBar());
   }
 
   Widget buildCartBar() {
@@ -575,6 +655,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                 ),
               ),
               onPressed: () {
+                getUserData();
                 showCartBottomSheet(); // Open bottom sheet on button click
               },
               child: Text(
@@ -598,12 +679,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                         shape: BoxShape.circle,
                         color: Colors.white,
                         boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.green.withOpacity(0.6),
-                                    blurRadius: 10,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.6),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
                         //border: Border.all(color: Colors.green, width: 2),
                       ),
                       child: CircleAvatar(
