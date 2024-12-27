@@ -70,29 +70,25 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       collectionName = "faculity_staff_orders";
     }
     try {
-      // Reference to the "orders" collection
       final ordersCollection = FirebaseFirestore.instance.collection(collectionName);
 
-      // Fetch all orders from the collection
       final snapshot = await ordersCollection.get();
 
       if (snapshot.docs.isEmpty) {
-        // If there are no orders, start with order ID 1
         orderID = 1;
         return 1;
       }
 
-      // Find the maximum order ID from the documents
       int maxOrderId = 0;
       for (var doc in snapshot.docs) {
-        // Ensure the "orderID" field exists and is an integer
+        
         final orderId = doc.data()['orderID'];
         if (orderId is int && orderId > maxOrderId) {
           maxOrderId = orderId;
         }
       }
 
-      // Return the next order ID
+      
       orderID = maxOrderId+1;
       return maxOrderId + 1;
     } catch (e) {
