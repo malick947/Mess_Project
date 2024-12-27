@@ -14,7 +14,7 @@ class Users {
 
 
 
-  Users({required this.uid,required this.first_name,required this.last_name,required this.email,required this.password,required this.role});
+  Users({required this.uid,required this.first_name,required this.last_name,required this.email,required this.password,required this.role,this.balance=0});
 
   Map<String,dynamic> toMap(){
     return {
