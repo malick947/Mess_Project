@@ -3,15 +3,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
+//import 'package:get/get_core/src/get_main.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:untitled123/Auth_Services/Account_service.dart';
 import 'package:untitled123/Auth_Services/UserModel.dart';
 import 'package:untitled123/Models/localDBModel.dart';
-import 'package:untitled123/Scrrens/account.dart';
-import 'package:untitled123/Scrrens/orderQueue.dart';
-import 'package:untitled123/homescreen.dart';
+//import 'package:untitled123/Scrrens/account.dart';
+//import 'package:untitled123/Scrrens/orderQueue.dart';
+//import 'package:untitled123/homescreen.dart';
 
 import '../Models/menu_model';
 
@@ -136,18 +136,18 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
             // Update the balance in Firestore
             await docRef.update({'balance': updatedBalance});
 
-            print("Balance updated successfully. New balance: $updatedBalance");
+            //print("Balance updated successfully. New balance: $updatedBalance");
           } else {
-            print("Insufficient balance!");
+            //print("Insufficient balance!");
           }
         } else {
-          print("Document does not exist!");
+          //print("Document does not exist!");
         }
       } else {
-        print("No matching document found for UID: $uid");
+        //print("No matching document found for UID: $uid");
       }
     } catch (e) {
-      print("Error updating balance: $e");
+      //print("Error updating balance: $e");
     }
   }
 
@@ -251,10 +251,10 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   void placeOrder() async {
     orderID = await getNextOrderId(userRole);
-    print("Next Order ID: $orderID");
+    //print("Next Order ID: $orderID");
     //getNextOrderId(userRole);
     getUsers();
-    print(orderID);
+    //print(orderID);
     final order = {
       'orderID': orderID,
       'items': cart,
@@ -288,12 +288,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     Navigator.of(context).pop();
   }
 
-  void printLocalOrders() async {
-    final orders = await DatabaseHelper.instance.getOrders();
-    for (var order in orders) {
-      print(order);
-    }
-  }
+  // void printLocalOrders() async {
+  //   final orders = await DatabaseHelper.instance.getOrders();
+  //   for (var order in orders) {
+  //     //print(order);
+  //   }
+  // }
 
   @override
   void dispose() {
@@ -346,7 +346,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                   ),
                 ),
                 Text(
-                  'Total Price: ${totalCartPrice} rs.',
+                  'Total Price: $totalCartPrice rs.',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -364,7 +364,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                     if (totalCartPrice <= userBalance) {
                       placeOrder();
                       deductBalance(userID, totalCartPrice);
-                      printLocalOrders();
+                      //printLocalOrders();
 
                       setState(() {});
                       _refresh();
