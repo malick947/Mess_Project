@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:untitled123/Auth_Services/Account_service.dart';
 import 'package:untitled123/Auth_Services/UserModel.dart';
 import 'package:untitled123/Models/localDBModel.dart';
+import 'package:untitled123/Scrrens/menu_item_detail_screen.dart';
 //import 'package:untitled123/Scrrens/account.dart';
 //import 'package:untitled123/Scrrens/orderQueue.dart';
 //import 'package:untitled123/homescreen.dart';
@@ -29,7 +30,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   bool isLoading = true;
 
-  int orderID =0;
+  int orderID = 0;
   var totalCartPrice = 0; // Total price of all items in the cart
   late String userID;
   late String userName;
@@ -70,7 +71,8 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       collectionName = "faculity_staff_orders";
     }
     try {
-      final ordersCollection = FirebaseFirestore.instance.collection(collectionName);
+      final ordersCollection =
+          FirebaseFirestore.instance.collection(collectionName);
 
       final snapshot = await ordersCollection.get();
 
@@ -81,15 +83,13 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
       int maxOrderId = 0;
       for (var doc in snapshot.docs) {
-        
         final orderId = doc.data()['orderID'];
         if (orderId is int && orderId > maxOrderId) {
           maxOrderId = orderId;
         }
       }
 
-      
-      orderID = maxOrderId+1;
+      orderID = maxOrderId + 1;
       return maxOrderId + 1;
     } catch (e) {
       print("Error fetching orders: $e");
@@ -152,6 +152,9 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   }
 
   ////////////////////// Balance Deduction ///////////////////////////////////////////////
+  //////////////////////Item Quantity Updation //////////////////////////////////////////
+
+  //////////////////////Item Quantity Updation //////////////////////////////////////////
 
   // Days of the week in order
   final List<String> weekDays = [
@@ -198,22 +201,63 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     });
   }
 
-  void addToCart(String name, double price) {
+  void addToCart(
+      String name, double price, int availableQuantity, String itemDay) {
+    final currentDay = DateTime.now().weekday;
+    final currentDayName =
+        weekDays[currentDay - 1]; // weekDays is your list of days
+
+    // Check if the item belongs to the current day
+    if (itemDay != currentDayName) {
+      Get.snackbar(
+        "Item Not Available",
+        "You can only order items for $currentDayName today.",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red.shade400,
+        colorText: Colors.white,
+      );
+      return;
+    }
     setState(() {
       final existingItemIndex = cart.indexWhere((item) => item['name'] == name);
+
+      double incrementValue = name.toLowerCase() == "roti" ? 1.0 : 0.5;
+
       if (existingItemIndex >= 0) {
-        // Update quantity and price for existing item
-        cart[existingItemIndex]['quantity'] += 0.5;
-        cart[existingItemIndex]['totalPrice'] =
-            cart[existingItemIndex]['quantity'] * price;
+        // Check if the current quantity in the cart is less than the available quantity
+        if (cart[existingItemIndex]['quantity'] + incrementValue <=
+            availableQuantity) {
+          // Update quantity and price for existing item
+          cart[existingItemIndex]['quantity'] += incrementValue;
+          cart[existingItemIndex]['totalPrice'] =
+              cart[existingItemIndex]['quantity'] * price;
+        } else {
+          // Show a message that the item is not available
+          Get.snackbar("Item Not Available",
+              "You cannot add more of $name. The available quantity is $availableQuantity.",
+              snackPosition: SnackPosition.TOP,
+              colorText: Colors.white,
+              backgroundColor: Colors.red.shade400);
+        }
       } else {
-        // Add new item to cart
-        cart.add({
-          'name': name,
-          'quantity': 0.5,
-          'unitPrice': price,
-          'totalPrice': 0.5 * price,
-        });
+        // Add new item to cart if the available quantity is greater than 0
+        if (availableQuantity > 0) {
+          cart.add({
+            'name': name,
+            'quantity': incrementValue,
+            'unitPrice': price,
+            'totalPrice': incrementValue * price,
+          });
+        } else {
+          // Show a message that the item is not available
+          Get.snackbar(
+            "Item Not Available",
+            "$name is currently out of stock.",
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.red.shade400,
+            colorText: Colors.white,
+          );
+        }
       }
       updateTotalCartPrice();
     });
@@ -222,11 +266,18 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   void removeFromCart(String name, double price) {
     setState(() {
       final existingItemIndex = cart.indexWhere((item) => item['name'] == name);
+
       if (existingItemIndex >= 0) {
-        cart[existingItemIndex]['quantity'] -= 0.5;
+        double decrementValue = name.toLowerCase() == "roti" ? 1.0 : 0.5;
+
+        // Decrement the quantity
+        cart[existingItemIndex]['quantity'] -= decrementValue;
+
+        // If the quantity drops to 0 or below, remove the item from the cart
         if (cart[existingItemIndex]['quantity'] <= 0) {
           cart.removeAt(existingItemIndex);
         } else {
+          // Update the total price for the item
           cart[existingItemIndex]['totalPrice'] =
               cart[existingItemIndex]['quantity'] * price;
         }
@@ -251,10 +302,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
 
   void placeOrder() async {
     orderID = await getNextOrderId(userRole);
-    //print("Next Order ID: $orderID");
-    //getNextOrderId(userRole);
-    getUsers();
-    //print(orderID);
+
     final order = {
       'orderID': orderID,
       'items': cart,
@@ -265,6 +313,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
       'totalPrice': totalCartPrice,
     };
 
+    // Add the order to the appropriate collection based on user role
     if (userRole == "Male Student") {
       await FirebaseFirestore.instance.collection('male_orders').add(order);
     } else if (userRole == "Female Student") {
@@ -274,17 +323,20 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
           .collection('faculity_staff_orders')
           .add(order);
     }
-    //await FirebaseFirestore.instance.collection('orders').add(order);
 
-    //await DatabaseHelper.instance.insertOrder(order);
+    // Decrement the quantity of each item in Firestore
+
+    // Clear the cart and reset the total price
     setState(() {
-      cart.clear(); // Clear the cart after placing the order
+      cart.clear();
       totalCartPrice = 0;
     });
 
     Get.snackbar(
-        "Order Placed Successfully", "Wait So that We will place the Order",
-        snackPosition: SnackPosition.TOP);
+      "Order Placed Successfully",
+      "Wait while we process your order.",
+      snackPosition: SnackPosition.TOP,
+    );
     Navigator.of(context).pop();
   }
 
@@ -539,12 +591,22 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                       AssetImage("assets/imagetest.png"),
                                 ),
                               ),
-                              Text(
-                                item.name,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                              GestureDetector(
+                                onTap: () {
+                                  Get.to(MenuItemDetailScreen(
+                                      name: item.name,
+                                      price: item.price,
+                                      description: item.description,
+                                      imagePath: "assets/imagetest.png",
+                                      quantityAVL: item.quantity));
+                                },
+                                child: Text(
+                                  item.name,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
                                 ),
                               ),
                               Text(
@@ -596,8 +658,22 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                                     ),
                                     GestureDetector(
                                       onTap: () {
-                                        addToCart(item.name,
-                                            double.parse(item.price));
+                                        // if (cart.firstWhere(
+                                        //       (cartItem) =>
+                                        //           cartItem['name'] == item.name,
+                                        //       orElse: () => {'quantity': 0.0},
+                                        //     )['quantity'].toString()<=
+                                        //     item.quantity) {
+                                        addToCart(
+                                            item.name,
+                                            double.parse(item.price),
+                                            int.parse(item.quantity),
+                                            menuDay.day);
+                                        // } else {
+                                        //   Get.snackbar(
+                                        //       "Item is Currently Out of Stock",
+                                        //       "Please Order Less or Choose Some Other Dish.");
+                                        // }
                                       },
                                       child: Container(
                                         padding: EdgeInsets.all(1),
