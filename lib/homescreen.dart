@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:provider/provider.dart';
+import 'package:untitled123/Providers/Role_Provider.dart';
+import 'package:untitled123/Providers/StopWatch_Provider.dart';
 import 'package:untitled123/Scrrens/account.dart';
 import 'package:untitled123/Scrrens/menu.dart';
 import 'package:untitled123/Scrrens/notification.dart';
@@ -28,7 +31,14 @@ class _HomescreenState extends State<Homescreen> {
 
   ];
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+  }
+  @override
   Widget build(BuildContext context) {
+
     return Scaffold(
         body: SafeArea(
           child: Center(

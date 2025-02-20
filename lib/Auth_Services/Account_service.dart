@@ -16,23 +16,34 @@ Future<List<Map<String,dynamic>>> getUsers() async {
   return users;
 }
 
-Future<Users> GetMe(String uid) async{
+Future<Users> GetMe(String uid) async {
+  debugPrint(uid);
+  try {
+    // Query the 'customers' collection to find the document where the 'uid' field matches the provided uid
+    final QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('customers')
+        .where('uid', isEqualTo: uid)
+        .limit(1) // Limit to 1 document since uid should be unique
+        .get();
 
-  List<Map<String, dynamic>> Banday = await getUsers();
-  bool emailFound = false;
-
-  late Users Me;
-  for (var user in Banday) {
-    if (user['uid'] == uid) {
-
-
-      Me=Users(uid: user['uid'], first_name: user['firstName'], last_name: user['lastName'], email: user['email'], password: user['password'], role: user['role'],balance: user['balance']);
-      debugPrint(Me.first_name);
-      break;
+    // Check if any documents were returned
+    if (querySnapshot.docs.isNotEmpty) {
+      final doc = querySnapshot.docs.first; // Get the first document
+      final userData = doc.data() as Map<String, dynamic>;
+      return Users(
+        uid: userData['uid'],
+        first_name: userData['firstName'],
+        last_name: userData['lastName'],
+        email: userData['email'],
+        password: userData['password'],
+        role: userData['role'],
+        balance: userData['balance'],
+      );
+    } else {
+      throw Exception("User not found");
     }
+  } catch (e) {
+    debugPrint("Error fetching user: $e");
+    rethrow;
   }
-
-  return Me;
-
-
 }

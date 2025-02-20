@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:untitled123/Auth_Services/Account_service.dart';
 import 'package:untitled123/Auth_Services/UserModel.dart';
+import 'package:untitled123/Models/Queue_Services.dart';
 import 'package:untitled123/Models/localDBModel.dart';
 import 'package:untitled123/Scrrens/menu_item_detail_screen.dart';
 //import 'package:untitled123/Scrrens/account.dart';
@@ -303,6 +304,12 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
   void placeOrder() async {
     orderID = await getNextOrderId(userRole);
 
+    int No_of_Orders = await GetOrdersNumber(userRole);
+    debugPrint(No_of_Orders.toString());
+    //print("Next Order ID: $orderID");
+    //getNextOrderId(userRole);
+    getUsers();
+    //print(orderID);
     final order = {
       'orderID': orderID,
       'items': cart,
