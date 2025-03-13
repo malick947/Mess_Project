@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:provider/provider.dart';
 import 'package:untitled123/Auth_Services/UserModel.dart';
 import 'package:untitled123/Providers/Role_Provider.dart';
@@ -51,7 +53,8 @@ class _QueueScreenState extends State<QueueScreen> {
   Future<void> _fetchOrders() async {
     if (role.isEmpty) await _updateMyRole();
 
-    final orders = await GetMyOrdersDetails(role, _auth.currentUser!.uid.trim());
+    final orders =
+        await GetMyOrdersDetails(role, _auth.currentUser!.uid.trim());
     await _calculateDurations(orders, role);
 
     setState(() {
@@ -59,7 +62,8 @@ class _QueueScreenState extends State<QueueScreen> {
     });
   }
 
-  Future<void> _calculateDurations(List<Map<String, dynamic>> orders, String role) async {
+  Future<void> _calculateDurations(
+      List<Map<String, dynamic>> orders, String role) async {
     try {
       // Fetch the current serving number
       final currentServing = await getminimumNumber(role);
@@ -91,9 +95,10 @@ class _QueueScreenState extends State<QueueScreen> {
     } catch (e) {
       // Handle errors gracefully
       debugPrint("Error in _calculateDurations: $e");
-      setState(() {
-        orderDurations = []; // Clear durations if there's an error
-      });
+      // setState(() {
+      //   orderDurations = []; // Clear durations if there's an error
+      // });
+      Get.snackbar("title", "message");
     }
   }
 
@@ -126,14 +131,21 @@ class _QueueScreenState extends State<QueueScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Queue No.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                            const Text('Queue No.',
+                                style: TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.bold)),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
                               decoration: BoxDecoration(
                                 color: Colors.orange,
                                 borderRadius: BorderRadius.circular(15),
                               ),
-                              child: Text('$currentServ', style: const TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
+                              child: Text('$currentServ',
+                                  style: const TextStyle(
+                                      fontSize: 30,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -144,7 +156,11 @@ class _QueueScreenState extends State<QueueScreen> {
                     margin: const EdgeInsets.only(top: 10),
                     child: Column(
                       children: [
-                        const Center(child: Text("Pending Orders", style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold))),
+                        const Center(
+                            child: Text("Pending Orders",
+                                style: TextStyle(
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.bold))),
                         Container(
                           height: height / 2.1,
                           width: width,
@@ -158,29 +174,46 @@ class _QueueScreenState extends State<QueueScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: Colors.orange,
-                                    border: Border.all(width: 1, color: Colors.orange.shade800),
+                                    border: Border.all(
+                                        width: 1,
+                                        color: Colors.orange.shade800),
                                     borderRadius: BorderRadius.circular(20),
-                                    boxShadow: const [BoxShadow(blurRadius: 3, color: Colors.orangeAccent)],
+                                    boxShadow: const [
+                                      BoxShadow(
+                                          blurRadius: 3,
+                                          color: Colors.orangeAccent)
+                                    ],
                                   ),
                                   child: Center(
                                     child: ListTile(
-                                      leading: const Icon(Icons.widgets, color: Colors.white),
+                                      leading: const Icon(Icons.widgets,
+                                          color: Colors.white),
                                       title: Text(
                                         'Order No $orderNo',
-                                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       trailing: Container(
                                         height: 50,
                                         width: 100,
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(10),
-                                          boxShadow: const [BoxShadow(blurRadius: 3, color: Colors.grey)],
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          boxShadow: const [
+                                            BoxShadow(
+                                                blurRadius: 3,
+                                                color: Colors.grey)
+                                          ],
                                         ),
                                         child: Center(
                                           child: Text(
                                             '${orderDurations[index]} m',
-                                            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                                fontSize: 25,
+                                                fontWeight: FontWeight.bold),
                                           ),
                                         ),
                                       ),

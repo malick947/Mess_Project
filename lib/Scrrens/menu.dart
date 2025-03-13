@@ -10,6 +10,7 @@ import 'package:untitled123/Auth_Services/Account_service.dart';
 import 'package:untitled123/Auth_Services/UserModel.dart';
 import 'package:untitled123/Models/Queue_Services.dart';
 import 'package:untitled123/Models/localDBModel.dart';
+import 'package:untitled123/Scrrens/HeartScreen.dart';
 import 'package:untitled123/Scrrens/menu_item_detail_screen.dart';
 //import 'package:untitled123/Scrrens/account.dart';
 //import 'package:untitled123/Scrrens/orderQueue.dart';
@@ -202,8 +203,7 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
     });
   }
 
-  void addToCart(
-      String name, double price, int availableQuantity, String itemDay) {
+  void addToCart(String name, double price, int availableQuantity, String itemDay) {
     final currentDay = DateTime.now().weekday;
     final currentDayName =
         weekDays[currentDay - 1]; // weekDays is your list of days
@@ -493,6 +493,11 @@ class _MenuPageState extends State<MenuPage> with TickerProviderStateMixin {
                   ),
               ],
             ),
+            IconButton(
+                onPressed: () {
+                  Get.to(() => Heartscreen());
+                },
+                icon: Icon(HugeIcons.strokeRoundedHeartbreak))
           ],
         ),
         body: Column(
